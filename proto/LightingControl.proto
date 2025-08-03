@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "generated.grpc.lightingcontrol";
+option java_outer_classname = "LightingControlImpl";
+
+package LightingControl;
+
+service LightingControl {            
+    rpc turnOnLight (turnOnLightRequest) returns (turnOnLightResponse) {}
+}
+    
+message turnOnLightRequest {
+    bool numLight1 = 1;    // the light number 1 is chosen to be turned on 
+}
+
+message turnOnLightResponse {
+    int32 lightNum = 1;
+    bool numLight1 = 2;    // light number 1 receives a request to turn on true – on false - off
+}

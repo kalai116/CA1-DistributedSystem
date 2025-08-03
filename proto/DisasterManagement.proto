@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "generated.grpc.disastermanagement";
+option java_outer_classname = "DisasterManagementImpl";
+
+package disastermanagement;
+
+service disasterMgmt {
+    rpc waterLevel (waterLevelRequest) returns (stream waterLevelResponse) {}
+    rpc disasterRecovery (stream disasterRecoveryRequest) returns (disasterRecoveryResponse) {}
+}
+
+//Server Streaming:
+
+message waterLevelRequest {
+    int32 wlinMeter = 1;         //water level in meter set to 1
+    int32 warningLevel = 100;
+}
+
+message waterLevelResponse {
+    string notification = 1;    //warning message
+    bool safeMode = 2;          //safe mode on - true
+    bool conMonitor = 3;        //Continous monitor on-true
+}
+
+// Client Streaming:
+
+message disasterRecoveryRequest {
+    string location = 2;       //user request with current location
+    int32 numPeople = 1;       //number of people to be recovered
+}
+
+message disasterRecoveryResponse {
+    bool recovery = 1;        //response is just recovery is turned true means on
+}
+

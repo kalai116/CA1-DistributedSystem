@@ -1,0 +1,22 @@
+syntax = "proto3";
+
+option java_multiple_files = true;
+option java_package = "generated.grpc.motionalert";
+option java_outer_classname = "MotionAlertImpl";
+
+package motionalert;
+
+service MotionAlertNdAction{
+    rpc motionAlertNoti (stream motionAlertNotiRequest) returns (stream motionAlertNotiResponse) {}
+}
+
+message motionAlertNotiRequest {
+    bool motionNotification = 1;   // turn on notification for motion alert
+    bool action = 2;   //each time user gets notification he or she can decide to take action or ignore 
+}
+
+message motionAlertNotiResponse {
+    bool motion = 2;     // motion detected
+    string notification = 3;     //warning message
+    bool ActionTaken = 4;    //if a action is requested action will be taken
+}
