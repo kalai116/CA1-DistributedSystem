@@ -19,6 +19,9 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import javax.jmdns.JmDNS;
 import javax.jmdns.ServiceInfo;
+import java.util.concurrent.TimeUnit;
+import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
+import io.grpc.*;
 /**
  *
  * @author Prasanna
@@ -34,7 +37,7 @@ public class MotionAlertNdAction extends MotionAlertNdActionImplBase{
         //creating object 
         MotionAlertNdAction motionAlServer = new MotionAlertNdAction();
         
-        int port = 50051;
+        int port = 50052;
         try{
             Server server = ServerBuilder.forPort(port)
                     .addService(motionAlServer) //connect the service to server
@@ -42,6 +45,9 @@ public class MotionAlertNdAction extends MotionAlertNdActionImplBase{
                     .start();  //helps to receive the request from client
             logger.info("Server started, open to receive request" + port);
             System.out.println("Motion Alert server is ready to serve" + port);
+            //creating instance to register the service means we can 
+            //use the service name to find the service instead of the port 
+            ServiceReg.getInstance().registerService("_grpc_tcp_local", "Motion alert", port, "It helps to notify user when motion dtected, takes action whenever required");
             //ensures the server stop only when terminated
             //server will stop immediately after starting incase this is not declared
             server.awaitTermination();
@@ -53,6 +59,8 @@ public class MotionAlertNdAction extends MotionAlertNdActionImplBase{
             //happens if any interruption during service
             //print auto generated error
             e.printStackTrace();
+        }catch(StatusRuntimeException e){
+            e.getStatus();
         }
     }
     /* 
@@ -88,7 +96,7 @@ public class MotionAlertNdAction extends MotionAlertNdActionImplBase{
                     //false need to put an ! before the request
                     if(request.getAction()){
                         ActionTaken = true;
-                        //notification = "Required action has been taken";
+                        notification = "Required action has been taken";
                     }
                 }else {
                     ActionTaken = false;
@@ -116,5 +124,14 @@ public class MotionAlertNdAction extends MotionAlertNdActionImplBase{
             }
         };
     
+    }
+    class MotionAlertInteceptor implements ServerInterceptor {
+        @Override
+        public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall
+        (ServerCall<ReqT, RespT> call, 
+                Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+            logger.info("Received following Metadata: " + headers);
+            return next.startCall(call, headers);
+        } 
     }
 }

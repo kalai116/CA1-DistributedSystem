@@ -11,6 +11,7 @@ import generated.grpc.disastermanagement.disasterMgmtGrpc.disasterMgmtStub;
 import generated.grpc.disastermanagement.disasterRecoveryResponse;
 import generated.grpc.disastermanagement.waterLevelRequest;
 import generated.grpc.disastermanagement.waterLevelResponse;
+import io.grpc.ClientInterceptor;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
@@ -23,20 +24,25 @@ import javax.jmdns.ServiceInfo;
 import java.net.InetAddress;
 import javax.jmdns.ServiceEvent;
 import javax.jmdns.ServiceListener;
-import ServicesPackage.HTTPClientdisastermgmt;
+import java.util.concurrent.TimeUnit;
+import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
+import io.grpc.*;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 /**
  *
  * @author Prasanna
  */
 public class disasterMgmtClient {
+    private static final Logger logger = Logger.getLogger(disasterMgmtClient.class.getName()); 
     //declaring a non blocking stub for asynchronous call
     private static disasterMgmtStub asyncStub;
     //blocking stub for synchronous call
     private static disasterMgmtBlockingStub syncStub;
     public static void main(String[] args) throws InterruptedException {
         ManagedChannel channel = ManagedChannelBuilder
-                .forAddress("localhost", 50051)
+                .forAddress("localhost", 50053)
                 .usePlaintext()
                 .build();
         //non blocking stub is for asynchronous calls
@@ -44,12 +50,12 @@ public class disasterMgmtClient {
         //as it wont be efficient with blocking stub to wait for the 
         //ful response to load from server
         asyncStub = disasterMgmtGrpc.newStub(channel);
-        syncStub = disasterMgmtGrpc.newBlockingStub(channel);
+        //syncStub = disasterMgmtGrpc.newBlockingStub(channel);
         getwaterLevel();
         requestdisasterRecovery(); 
         
-        disasterMgmtServiceDiscovery discoveryService = new disasterMgmtServiceDiscovery();
-        
+        //ServiceDiscovery discoveryService = new ServiceDiscovery();
+        //ServiceInfo serviceinfo =  discoveryService
         
         
     }
@@ -65,6 +71,7 @@ public class disasterMgmtClient {
                 .setWarningLevel(100)
                 .build();
         StreamObserver <waterLevelResponse> responseObserver = new StreamObserver <waterLevelResponse> (){
+        
             @Override
             public void onNext(waterLevelResponse value){
                 System.out.println("Client received" + value.getSafeMode() +
@@ -123,6 +130,8 @@ public class disasterMgmtClient {
                 System.out.println("Stream completed");
             }
         };
+        
+        asyncStub.disasterRecovery(responseObserver);
         //client opens the interaction using aSynchronous stub
         //client initiates responseObserver and receive requestObserver
         //using requestObserver client uses onNext method to send request
@@ -160,6 +169,31 @@ public class disasterMgmtClient {
             e.printStackTrace();
         }catch(InterruptedException t){
             t.printStackTrace();
+        }
+    }
+    //Metadata sends and handles data and info that are not part of 
+    //business logic
+    static class disastermgmtInteceptor implements ClientInterceptor {
+        //gRPC helps to deal with metdata making it easier to be accessed 
+        //by the server. inceptors are used to read and write data 
+        public <ReqT, RespS> 
+            ClientCall <ReqT, RespS> 
+        intercepCall (MethodDescriptor <ReqT, RespS> method, 
+                CallOptions calloptions,Channel next) {
+           return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, 
+                   RespS> (next.newCall(method, calloptions)){
+                       @Override
+                       public void start (ClientCall.Listener <RespS> responseListener,
+                               Metadata headers) {
+                           headers.put(Metadata.Key.of("HOSTNAME", ASCII_STRING_MARSHALLER), "My_HOST");
+                           super.start(responseListener, headers);
+                       }
+                   };
+        }
+
+        @Override
+        public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> md, CallOptions co, Channel chnl) {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
         }
     }
 }

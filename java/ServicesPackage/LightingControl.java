@@ -15,13 +15,19 @@ import java.io.IOException;
 import java.time.LocalTime;
 import java.util.ArrayList;
 import java.util.logging.Logger;
+import java.util.concurrent.TimeUnit;
+import java.util.List;
+import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
+import io.grpc.*;
+import io.grpc.Metadata.Key;
+import io.jsonwebtoken.*;
 
 /**
  *
  * @author Prasanna
  */
 public class LightingControl extends LightingControlImplBase{
-       //Logger simply helps to update the status and helps in detecting errors
+    //Logger simply helps to update the status and helps in detecting errors
     //its private bcoz its used only in this class
     //its final bcoz 
     private static final Logger logger 
@@ -37,10 +43,12 @@ public class LightingControl extends LightingControlImplBase{
                     .addService(lcServer) //connect the service to server
                     .build() //helps to create the server 
                     .start();  //helps to receive the request from client
-            logger.info("Server started, open to receive request" + port);
-            System.out.println("Lighting Service, ready to serve" + port);
+            logger.info("Server started, open to receive request " + port);
+            System.out.println("Lighting Service, ready to serve at " + port);
+            ServiceReg.getInstance().registerService("_grpc_tcp_local", "Lighting Control", port, "The service will turn on the light");
             //ensures the server stop only when terminated
             //server will stop immediately after starting incase this is not declared
+            
             server.awaitTermination();
             
         }catch (IOException e){
@@ -50,6 +58,8 @@ public class LightingControl extends LightingControlImplBase{
             //happens if any interruption during service
             //print auto generated error
             e.printStackTrace();
+        }catch(StatusRuntimeException e){
+            e.getStatus();
         }
     }
     /*
@@ -71,5 +81,15 @@ public class LightingControl extends LightingControlImplBase{
                 .build();
         response.onNext(turnOnLight);
         response.onCompleted();
+        
+    }
+    class LightingControlInteceptor implements ServerInterceptor {
+        @Override
+        public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall
+        (ServerCall<ReqT, RespT> call, 
+                Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+            logger.info("Received following Metadata: " + headers);
+            return next.startCall(call, headers);
+        } 
     }
 }

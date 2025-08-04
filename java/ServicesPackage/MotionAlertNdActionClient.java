@@ -13,20 +13,26 @@ import java.time.LocalTime;
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
 import io.grpc.stub.StreamObserver;
-import java.time.LocalTime;
 import java.util.Iterator;
+import java.util.concurrent.TimeUnit;
+import static io.grpc.Metadata.ASCII_STRING_MARSHALLER;
+import io.grpc.*;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
 /**
  *
  * @author Prasanna
  */
 public class MotionAlertNdActionClient {
+    private static final Logger logger = Logger.getLogger(MotionAlertNdActionClient.class.getName());
     //declaring a non blocking stub for asynchronous call
     private static MotionAlertNdActionStub asyncStub;
     //blocking stub for synchronous call
     private static MotionAlertNdActionBlockingStub syncStub;
     public static void main(String[] args) throws InterruptedException {
         ManagedChannel channel = ManagedChannelBuilder
-                .forAddress("localhost", 50051)
+                .forAddress("localhost", 50052)
                 .usePlaintext()
                 .build();
         //non blocking stub is for asynchronous calls
@@ -34,7 +40,7 @@ public class MotionAlertNdActionClient {
         //as it wont be efficient with blocking stub to wait for the 
         //ful response to load from server
         asyncStub = MotionAlertNdActionGrpc.newStub(channel);
-        syncStub = MotionAlertNdActionGrpc.newBlockingStub(channel); 
+        //syncStub = MotionAlertNdActionGrpc.newBlockingStub(channel); 
         getmotionAlertNoti();
     }
     //Bi-Di
@@ -65,6 +71,7 @@ public class MotionAlertNdActionClient {
                         System.out.println("Stream completed");
                     }
                 };
+        
         //this part denotes the interaction between the asychronous stub
         //now using onNext client sends over the requests
         StreamObserver <motionAlertNotiRequest> requestObserver =
@@ -91,5 +98,29 @@ public class MotionAlertNdActionClient {
             e.printStackTrace();
         }
         
+    }
+    static class MotionAlertInterceptor implements ClientInterceptor {
+        //gRPC helps to deal with metdata making it easier to be accessed 
+        //by the server. inceptors are used to read and write data 
+        //keep it generic for the request and response
+        public <ReqT, RespS> 
+            ClientCall <ReqT, RespS> 
+        intercepCall (MethodDescriptor <ReqT, RespS> method, 
+                CallOptions calloptions,Channel next) {
+           return new ForwardingClientCall.SimpleForwardingClientCall<ReqT, 
+                   RespS> (next.newCall(method, calloptions)){
+                       @Override
+                       public void start (ClientCall.Listener <RespS> responseListener,
+                               Metadata headers) {
+                           headers.put(Metadata.Key.of("HOSTNAME", ASCII_STRING_MARSHALLER), "My_HOST");
+                           super.start(responseListener, headers);
+                       }
+                   };
+        }
+
+        @Override
+        public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(MethodDescriptor<ReqT, RespT> md, CallOptions co, Channel chnl) {
+            throw new UnsupportedOperationException("Not supported yet."); // Generated from nbfs://nbhost/SystemFileSystem/Templates/Classes/Code/GeneratedMethodBody
+        }
     }
 }

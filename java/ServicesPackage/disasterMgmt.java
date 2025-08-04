@@ -12,6 +12,7 @@ import generated.grpc.disastermanagement.waterLevelRequest;
 import generated.grpc.disastermanagement.waterLevelResponse;
 import io.grpc.Server;
 import io.grpc.ServerBuilder;
+import io.grpc.ServerInterceptor;
 import io.grpc.stub.StreamObserver;
 import java.io.IOException;
 import java.time.LocalTime;
@@ -21,6 +22,10 @@ import java.net.InetAddress;
 import java.net.UnknownHostException;
 import javax.jmdns.JmDNS;
 import javax.jmdns.ServiceInfo;
+import java.util.concurrent.TimeUnit;
+import java.util.List;
+import java.util.logging.Logger;
+import io.grpc.*;
 
 /**
  *
@@ -37,7 +42,7 @@ public class disasterMgmt extends disasterMgmtImplBase{
         //creating object 
         disasterMgmt dmServer = new disasterMgmt();
         
-        int port = 50051;
+        int port = 50053;
         try{
             Server server = ServerBuilder.forPort(port)
                     .addService(dmServer) //connect the service to server
@@ -45,13 +50,16 @@ public class disasterMgmt extends disasterMgmtImplBase{
                     .start();  //helps to receive the request from client
             logger.info("Server started, open to receive request" + port);
             System.out.println("Lighting Service, ready to serve" + port);
+            //Using jmDNS registration to register the service           
+            ServiceReg serverRegistry = ServiceReg.getInstance();
+            serverRegistry.registerService("_grpc_tcp_local", "disaster", port, "Server warns you when you reach warning level");
+            
             //ensures the server stop only when terminated
             //server will stop immediately after starting incase this is not declared
+           
             server.awaitTermination();
             
-            //Using jmDNS registration to 
-            disasterMgmtServiceReg serverRegistry = disasterMgmtServiceReg.getInstance();
-            serverRegistry.registerService("_disasterMgmt._tcp.local", "disaster", port, "Server warns you when you reach warning level");
+            
         }catch (IOException e){
             //inout/output error handling, print auto generated error
             e.printStackTrace();
@@ -59,6 +67,10 @@ public class disasterMgmt extends disasterMgmtImplBase{
             //happens if any interruption during service
             //print auto generated error
             e.printStackTrace();
+            //the status exception helps to display the exact reaso for 
+            //the exception 
+        }catch(StatusRuntimeException e){
+            e.getStatus();
         }
     }
     /* 
@@ -127,10 +139,12 @@ public class disasterMgmt extends disasterMgmtImplBase{
                 boolean recovery = false;
                 //as and when the location and numpeople sent 
                 //recovery is enabled to true telling them help is on its way
+                
                 do{
-                    recovery = true;  
-                    System.out.println("Help is on its way");
-                }while(needRecovery);
+                     recovery = true;
+                     System.out.println("Help is on its way");
+                  }while(needRecovery == true);
+                
                 disasterRecoveryResponse response = disasterRecoveryResponse.newBuilder()
                         .setRecovery(recovery)
                         .build();
@@ -141,9 +155,17 @@ public class disasterMgmt extends disasterMgmtImplBase{
                 responseObserver.onNext(response);
                 
                 //onComplete simply signals server its finished
-                responseObserver.onCompleted();
-                
+                responseObserver.onCompleted();              
             }
         };
+    }
+    class disastermgmtInteceptor implements ServerInterceptor {
+        @Override
+        public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall
+        (ServerCall<ReqT, RespT> call, 
+                Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+            logger.info("Received following Metadata: " + headers);
+            return next.startCall(call, headers);
+        } 
     }
 }
