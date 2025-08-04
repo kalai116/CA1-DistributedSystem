@@ -143,6 +143,7 @@ public class disasterMgmt extends disasterMgmtImplBase{
                 do{
                      recovery = true;
                      System.out.println("Help is on its way");
+                     needRecovery = false;
                   }while(needRecovery == true);
                 
                 disasterRecoveryResponse response = disasterRecoveryResponse.newBuilder()
